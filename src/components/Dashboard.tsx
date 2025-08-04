@@ -82,6 +82,11 @@ export const Dashboard: React.FC = () => {
     console.log('Downloading all files:', processedFiles.length);
   }, [files]);
 
+  const handleClearAll = useCallback(() => {
+    setFiles([]);
+    setSelectedFile(null);
+  }, []);
+
   const handleFileSelect = useCallback((file: FileWithPreview) => {
     setSelectedFile(file);
     setActivePanel('preview');
@@ -182,7 +187,7 @@ export const Dashboard: React.FC = () => {
               <Card className="glass-card p-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold">Files ({files.length})</h3>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={handleClearAll}>
                     <Folder className="w-4 h-4 mr-2" />
                     Clear All
                   </Button>

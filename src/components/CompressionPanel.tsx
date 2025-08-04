@@ -15,7 +15,12 @@ import {
   Image,
   FileText,
   Maximize2,
-  RotateCcw
+  RotateCcw,
+  Camera,
+  Globe,
+  Smartphone,
+  Eraser,
+  Crop
 } from 'lucide-react';
 import { FileWithPreview } from './FileUpload';
 import { cn } from '@/lib/utils';
@@ -28,6 +33,16 @@ interface CompressionPanelProps {
   onDownloadAll: () => void;
   files: FileWithPreview[];
 }
+
+// Quality presets
+const QUALITY_PRESETS = [
+  { name: 'Photography', value: 10, icon: Camera, desc: 'Near-lossless quality for professional photos' },
+  { name: 'Web', value: 30, icon: Globe, desc: 'Good visual quality, optimized for web' },
+  { name: 'Mobile-Tiny', value: 60, icon: Smartphone, desc: 'Fast downloads, visible compression' }
+];
+
+// Snap points for the slider
+const SNAP_POINTS = [20, 50, 80];
 
 const getQualityLabel = (level: number) => {
   if (level <= 20) return { label: 'Highest Quality', color: 'text-red-400', desc: 'Minimal compression, largest files' };
@@ -56,6 +71,9 @@ export const CompressionPanel: React.FC<CompressionPanelProps> = ({
   const [batchMode, setBatchMode] = useState(false);
   const [losslessMode, setLosslessMode] = useState(false);
   const [autoOptimize, setAutoOptimize] = useState(true);
+  const [stripMetadata, setStripMetadata] = useState(true);
+  const [autoConvert, setAutoConvert] = useState(true);
+  const [maxDimension, setMaxDimension] = useState<number | null>(null);
   const [batchLevel, setBatchLevel] = useState(50);
 
   const handleSliderChange = useCallback((value: number[]) => {
@@ -67,6 +85,17 @@ export const CompressionPanel: React.FC<CompressionPanelProps> = ({
       });
     } else if (selectedFile) {
       onCompressionChange(selectedFile.id, level);
+    }
+  }, [batchMode, selectedFile, files, onCompressionChange]);
+
+  const handlePresetSelect = useCallback((preset: typeof QUALITY_PRESETS[0]) => {
+    if (batchMode) {
+      setBatchLevel(preset.value);
+      files.forEach(file => {
+        onCompressionChange(file.id, preset.value);
+      });
+    } else if (selectedFile) {
+      onCompressionChange(selectedFile.id, preset.value);
     }
   }, [batchMode, selectedFile, files, onCompressionChange]);
 
@@ -132,6 +161,30 @@ export const CompressionPanel: React.FC<CompressionPanelProps> = ({
               </div>
             </div>
 
+            {/* Quality Presets */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Quick Presets</label>
+              <div className="grid grid-cols-3 gap-2">
+                {QUALITY_PRESETS.map((preset) => {
+                  const Icon = preset.icon;
+                  const isActive = currentLevel === preset.value;
+                  return (
+                    <Button
+                      key={preset.name}
+                      variant={isActive ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handlePresetSelect(preset)}
+                      className="flex flex-col items-center space-y-1 h-auto py-3"
+                      title={preset.desc}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="text-xs">{preset.name}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Quality Slider */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -147,18 +200,29 @@ export const CompressionPanel: React.FC<CompressionPanelProps> = ({
                   onValueChange={handleSliderChange}
                   max={100}
                   step={1}
+                  snapPoints={SNAP_POINTS}
                   className="w-full"
+                  aria-label="Compression quality slider"
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>High Quality</span>
                   <span className="font-medium">{currentLevel}%</span>
                   <span>High Compression</span>
                 </div>
+                <div className="flex justify-between text-xs text-muted-foreground/70">
+                  <span>20</span>
+                  <span>50</span>
+                  <span>80</span>
+                </div>
               </div>
               
               <div className="flex items-start space-x-2 p-3 rounded-lg bg-muted/50">
                 <Info className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" />
-                <p className="text-xs text-muted-foreground">{qualityInfo.desc}</p>
+                <p className="text-xs text-muted-foreground">
+                  {currentLevel <= 20 && "0-20: Virtually no artifacts, maximum quality"}
+                  {currentLevel > 20 && currentLevel <= 60 && "20-60: Good trade-off between size and quality"}
+                  {currentLevel > 60 && "60-100: Smaller files, faster downloads, some visual loss"}
+                </p>
               </div>
             </div>
           </div>
@@ -171,8 +235,16 @@ export const CompressionPanel: React.FC<CompressionPanelProps> = ({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
+              <Eraser className="w-4 h-4 text-accent" />
+              <span className="text-sm">Strip EXIF/Metadata</span>
+            </div>
+            <Switch checked={stripMetadata} onCheckedChange={setStripMetadata} />
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
               <Shield className="w-4 h-4 text-accent" />
-              <span className="text-sm">Lossless Compression</span>
+              <span className="text-sm">Lossless Mode</span>
             </div>
             <Switch checked={losslessMode} onCheckedChange={setLosslessMode} />
           </div>
@@ -180,10 +252,27 @@ export const CompressionPanel: React.FC<CompressionPanelProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Zap className="w-4 h-4 text-primary" />
-              <span className="text-sm">Auto-optimize Format</span>
+              <span className="text-sm">Auto-convert WebP/AVIF</span>
             </div>
-            <Switch checked={autoOptimize} onCheckedChange={setAutoOptimize} />
+            <Switch checked={autoConvert} onCheckedChange={setAutoConvert} />
           </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Crop className="w-4 h-4 text-primary" />
+              <span className="text-sm">Resize to Max 1920px</span>
+            </div>
+            <Switch 
+              checked={maxDimension === 1920} 
+              onCheckedChange={(checked) => setMaxDimension(checked ? 1920 : null)} 
+            />
+          </div>
+
+          {stripMetadata && (
+            <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+              Removing metadata can reduce file size by 10-18% with no visual impact
+            </div>
+          )}
         </div>
       </Card>
 

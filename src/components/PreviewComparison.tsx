@@ -21,6 +21,13 @@ interface PreviewComparisonProps {
   onReset?: () => void;
 }
 
+// Simulate compression effects for visual preview
+const simulateCompression = (originalSrc: string, quality: number): string => {
+  // In a real implementation, this would apply actual compression
+  // For now, we'll use CSS filters to simulate quality loss
+  return originalSrc;
+};
+
 const formatFileSize = (bytes: number) => {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
@@ -148,11 +155,24 @@ export const PreviewComparison: React.FC<PreviewComparisonProps> = ({
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              role="slider"
+              aria-label="Image comparison slider"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={sliderPosition}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowLeft') {
+                  setSliderPosition(Math.max(0, sliderPosition - 5));
+                } else if (e.key === 'ArrowRight') {
+                  setSliderPosition(Math.min(100, sliderPosition + 5));
+                }
+              }}
             >
               {/* Original Image */}
               <img 
                 src={file.preview} 
-                alt="Original"
+                alt="Original image"
                 className="absolute inset-0 w-full h-full object-contain"
               />
               
@@ -162,9 +182,12 @@ export const PreviewComparison: React.FC<PreviewComparisonProps> = ({
                 style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
               >
                 <img 
-                  src={file.preview} // This would be the compressed version
-                  alt="Compressed"
-                  className="w-full h-full object-contain opacity-90"
+                  src={simulateCompression(file.preview, file.compressionLevel)}
+                  alt="Compressed image"
+                  className="w-full h-full object-contain"
+                  style={{
+                    filter: `contrast(${1 - (file.compressionLevel / 200)}) brightness(${1 - (file.compressionLevel / 400)})`
+                  }}
                 />
               </div>
 
@@ -174,17 +197,22 @@ export const PreviewComparison: React.FC<PreviewComparisonProps> = ({
                 style={{ left: `${sliderPosition}%`, transform: 'translateX(-50%)' }}
                 onMouseDown={handleMouseDown}
               >
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-lg">
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
                   <Move3D className="w-4 h-4 text-primary-foreground" />
                 </div>
               </div>
 
               {/* Labels */}
-              <div className="absolute top-4 left-4 bg-black/50 text-white px-3 py-1 rounded-md text-sm font-medium">
+              <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1 rounded-md text-sm font-medium backdrop-blur-sm">
                 Original
               </div>
-              <div className="absolute top-4 right-4 bg-black/50 text-white px-3 py-1 rounded-md text-sm font-medium">
-                Compressed
+              <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-1 rounded-md text-sm font-medium backdrop-blur-sm">
+                Compressed ({file.compressionLevel}%)
+              </div>
+
+              {/* Quick hint */}
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-3 py-1 rounded-md text-xs backdrop-blur-sm">
+                Drag to compare • Use ←/→ arrow keys
               </div>
             </div>
           ) : (

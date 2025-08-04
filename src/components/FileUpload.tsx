@@ -77,8 +77,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesAdded, files, onR
           "hover:shadow-elevation hover:border-primary/50",
           (isDragActive || dzIsDragActive) && "border-primary bg-primary/5 scale-[1.02]"
         )}
+        role="button"
+        tabIndex={0}
+        aria-label="Upload files by dragging and dropping or clicking to browse"
       >
-        <input {...getInputProps()} />
+        <input {...getInputProps()} aria-describedby="upload-description" />
         <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
           <div className={cn(
             "w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center mb-4 transition-transform group-hover:scale-110",
@@ -89,9 +92,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesAdded, files, onR
           <h3 className="text-xl font-semibold mb-2">
             {isDragActive || dzIsDragActive ? 'Drop files here' : 'Upload Files'}
           </h3>
-          <p className="text-muted-foreground mb-4 max-w-sm">
+          <p className="text-muted-foreground mb-4 max-w-sm" id="upload-description">
             Drag and drop your files here, or click to browse. 
-            Supports images, PDFs, and documents.
+            Supports images, PDFs, and documents up to 50MB each.
           </p>
           <Button variant="outline" size="lg" className="pointer-events-none">
             Browse Files
@@ -145,11 +148,15 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesAdded, files, onR
                     </div>
 
                     {/* Remove Button */}
-                    <Button
+                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => onRemoveFile(file.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveFile(file.id);
+                      }}
                       className="text-muted-foreground hover:text-destructive"
+                      aria-label={`Remove ${file.name}`}
                     >
                       <X className="w-4 h-4" />
                     </Button>
